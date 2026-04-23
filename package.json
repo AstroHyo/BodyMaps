@@ -16,7 +16,7 @@
     "@vercel/blob": "^0.25.1",
     "class-variance-authority": "^0.7.0",
     "lucide-react": "^0.453.0",
-    "next": "15.0.0",
+    "next": "15.0.7",
     "nifti-reader-js": "^0.6.8",
     "react": "19.0.0-rc-65a56d0e-20241020",
     "react-dom": "19.0.0-rc-65a56d0e-20241020",
