@@ -96,6 +96,7 @@ export default function UploadCT() {
       const formData = new FormData();
       formData.append("file", blob.url);
       formData.append("password", password);
+      formData.append("params", JSON.stringify({}));
 
       const res = await fetch("/api/process", {
         method: "POST",
@@ -103,7 +104,8 @@ export default function UploadCT() {
       });
 
       if (!res.ok) {
-        throw new Error("API request failed");
+        const payload = await res.json().catch(() => null);
+        throw new Error(payload?.error ?? "API request failed");
       }
 
       const data = parseInferenceResult(await res.json());
@@ -127,7 +129,11 @@ export default function UploadCT() {
       router.push("/visualization");
     } catch (error) {
       console.error("Upload failed:", error);
-      setError(`Upload failed. Could be due to incorrect password.`);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Upload failed. Could be due to incorrect password."
+      );
     }
 
     clearSimulation?.();
@@ -174,24 +180,27 @@ export default function UploadCT() {
 
   return (
     <>
-      <div className="w-full max-w-md">
+      <div className="w-full">
         <div className="my-4 w-full">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password" className="text-muted-foreground">
+            Password
+          </Label>
           <div className="relative">
             <Input
+              id="password"
               autoComplete="off"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password to enable upload"
               disabled={isUploading || isProcessing}
-              className="pr-10"
+              className="mt-2 border-input bg-muted text-foreground placeholder:text-muted-foreground pr-10"
             />
-            <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <Lock className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           </div>
         </div>
         <div
-          className={`h-64 border-2 border-dashed border-gray-400 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:border-blue-500 ${
+          className={`flex h-64 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-black/25 text-center transition-all duration-300 hover:border-primary hover:bg-primary/5 ${
             !password || isUploading || isProcessing
               ? "pointer-events-none opacity-50"
               : ""
@@ -202,18 +211,18 @@ export default function UploadCT() {
         >
           {file ? (
             <div className="text-center">
-              <FileUp className="w-16 h-16 mx-auto mb-4 text-blue-500" />
-              <p className="text-lg font-semibold">{file.name}</p>
+              <FileUp className="mx-auto mb-4 h-16 w-16 text-primary" />
+              <p className="text-lg font-semibold text-white">{file.name}</p>
             </div>
           ) : (
             <div className="text-center">
-              <Upload className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-              <p className="text-lg">
+              <Upload className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
+              <p className="text-lg text-white">
                 {!password
                   ? "Enter Password First"
                   : "Drag & Drop or Click to Upload"}
               </p>
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="mt-2 text-sm text-muted-foreground">
                 Supported format: .nii.gz
               </p>
             </div>
@@ -228,29 +237,38 @@ export default function UploadCT() {
           disabled={isUploading || isProcessing}
         />
         {process.env.NEXT_PUBLIC_ALLOW_SAMPLE_DATA && (
-          <Button
-            onClick={() => router.push("/visualization?sample=1")}
-          >
-            Load Sample Data
-          </Button>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <Button
+              className="w-full bg-primary text-primary-foreground hover:bg-cyan-300"
+              onClick={() => router.push("/visualization?runpodEvidence=1")}
+            >
+              Load RunPod Result
+            </Button>
+            <Button
+              className="w-full border border-border bg-secondary text-secondary-foreground hover:bg-muted"
+              onClick={() => router.push("/visualization?sample=1")}
+            >
+              Load Sample Data
+            </Button>
+          </div>
         )}
         {(isUploading || isProcessing) && (
           <div className="w-full mt-4">
             <div className="mb-2 flex justify-between items-center">
-              <span className="text-sm">{status}</span>
-              <span className="text-sm">{progress}%</span>
+              <span className="text-sm text-muted-foreground">{status}</span>
+              <span className="text-sm text-muted-foreground">{progress}%</span>
             </div>
-            <div className="w-full bg-gray-700 rounded-full h-2.5">
+            <div className="h-2.5 w-full rounded-full bg-muted">
               <div
-                className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                className="h-2.5 rounded-full bg-primary transition-all duration-300"
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
           </div>
         )}
         {(isUploading || isProcessing) && (
-          <div className="mt-4 flex items-center text-yellow-400">
-            <AlertTriangle className="w-5 h-5 mr-2" />
+          <div className="mt-4 flex items-center text-accent">
+            <AlertTriangle className="mr-2 h-5 w-5" />
             <span className="text-sm">
               Please do not close or refresh the page during upload and
               processing.
@@ -258,8 +276,8 @@ export default function UploadCT() {
           </div>
         )}
         {error && (
-          <div className="mt-4 flex items-center text-red-400">
-            <AlertTriangle className="w-5 h-5 mr-2" />
+          <div className="mt-4 flex items-center text-red-300">
+            <AlertTriangle className="mr-2 h-5 w-5" />
             <span className="text-sm">{error}</span>
           </div>
         )}

@@ -1,4 +1,5 @@
 export const SAMPLE_VOLUME_URL = "/samples/ct.nii.gz";
+export const RUNPOD_EVIDENCE_VOLUME_URL = "/runpod-evidence/ct.nii.gz";
 
 export const SAMPLE_SEGMENTATION_FILES = [
   { organName: "aorta", url: "/samples/aorta.nii.gz" },
@@ -12,6 +13,12 @@ export const SAMPLE_SEGMENTATION_FILES = [
   { organName: "stomach", url: "/samples/stomach.nii.gz" },
 ];
 
+export const RUNPOD_EVIDENCE_SEGMENTATION_FILES =
+  SAMPLE_SEGMENTATION_FILES.map(({ organName }) => ({
+    organName,
+    url: `/runpod-evidence/${organName}.nii.gz`,
+  }));
+
 type SampleMetrics = Record<
   string,
   {
@@ -20,12 +27,20 @@ type SampleMetrics = Record<
   }
 >;
 
-export async function loadSampleSegmentations() {
-  const metricsRes = await fetch("/samples/manifest.json");
+async function loadSegmentations({
+  volumeURL,
+  manifestURL,
+  segmentationFiles,
+}: {
+  volumeURL: string;
+  manifestURL: string;
+  segmentationFiles: { organName: string; url: string }[];
+}) {
+  const metricsRes = await fetch(manifestURL);
   const metrics: SampleMetrics = metricsRes.ok ? await metricsRes.json() : {};
 
   const segmentations = await Promise.all(
-    SAMPLE_SEGMENTATION_FILES.map(async ({ organName, url }) => {
+    segmentationFiles.map(async ({ organName, url }) => {
       const res = await fetch(url);
       if (!res.ok) {
         throw new Error(`Failed to load sample segmentation: ${url}`);
@@ -42,7 +57,23 @@ export async function loadSampleSegmentations() {
   );
 
   return {
-    volumeURL: SAMPLE_VOLUME_URL,
+    volumeURL,
     segmentations,
   };
+}
+
+export async function loadSampleSegmentations() {
+  return loadSegmentations({
+    volumeURL: SAMPLE_VOLUME_URL,
+    manifestURL: "/samples/manifest.json",
+    segmentationFiles: SAMPLE_SEGMENTATION_FILES,
+  });
+}
+
+export async function loadRunPodEvidenceSegmentations() {
+  return loadSegmentations({
+    volumeURL: RUNPOD_EVIDENCE_VOLUME_URL,
+    manifestURL: "/runpod-evidence/manifest.json",
+    segmentationFiles: RUNPOD_EVIDENCE_SEGMENTATION_FILES,
+  });
 }

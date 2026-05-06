@@ -12,18 +12,14 @@ export async function POST(request: Request): Promise<NextResponse> {
         pathname: string,
         clientPayload?: string | null
       ) => {
-        // Generate a client token for the browser to upload the file
-
-        // ⚠️ Authenticate users before generating the token.
-        // Otherwise, you're allowing anonymous uploads.
+        const passwordRequired = process.env.DISABLE_PASSWORD !== "true";
 
         const { password } = JSON.parse(clientPayload || "{}");
-        if (!password) {
+        if (passwordRequired && !password) {
           throw new Error("Password is required");
         }
 
-        // Validate password (replace with your actual password check)
-        if (password !== process.env.PASSWORD) {
+        if (passwordRequired && password !== process.env.PASSWORD) {
           throw new Error("Invalid password");
         }
 
@@ -50,6 +46,9 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json(jsonResponse);
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message });
+    return NextResponse.json(
+      { error: (error as Error).message },
+      { status: 400 }
+    );
   }
 }

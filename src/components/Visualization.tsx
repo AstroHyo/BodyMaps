@@ -16,7 +16,10 @@ import { useCornerstone } from "@/context/CornerstoneContext";
 import NiivueCanvas from "@/components/Niivue";
 import SegmentationDataModal from "@/components/SegmentationDataModal";
 import VisualizationControls from "@/components/VisualizationControls";
-import { loadSampleSegmentations } from "@/utils/sampleData";
+import {
+  loadRunPodEvidenceSegmentations,
+  loadSampleSegmentations,
+} from "@/utils/sampleData";
 
 export default function Visualization() {
   const [showModal, setShowModal] = useState(false);
@@ -60,10 +63,16 @@ export default function Visualization() {
     if (segmentations.length) return;
     if (
       process.env.NEXT_PUBLIC_ALLOW_SAMPLE_DATA &&
-      searchParams.get("sample") === "1"
+      (searchParams.get("sample") === "1" ||
+        searchParams.get("runpodEvidence") === "1")
     ) {
       let canceled = false;
-      loadSampleSegmentations()
+      const loader =
+        searchParams.get("runpodEvidence") === "1"
+          ? loadRunPodEvidenceSegmentations
+          : loadSampleSegmentations;
+
+      loader()
         .then(({ volumeURL, segmentations }) => {
           if (canceled) return;
           setVolumeURL(volumeURL);

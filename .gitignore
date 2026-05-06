@@ -34,6 +34,10 @@ yarn-error.log*
 # env files (can opt-in for commiting if needed)
 .env*
 
+# local proof assets generated from real inference runs
+/public/runpod-evidence/
+/docs/evidence/app-flow-dark/*.json
+
 # vercel
 .vercel
 
