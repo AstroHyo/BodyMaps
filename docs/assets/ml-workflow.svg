@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="170" viewBox="0 0 1500 170" role="img" aria-labelledby="title desc">
+  <title id="title">BodyMaps ML inference workflow</title>
+  <desc id="desc">A monochrome horizontal workflow showing CT URL to ct.nii.gz to MONAI loader to SuPreM CUDA inference to NIfTI masks plus metrics to viewer contract.</desc>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --box: #f6f8fa;
+      --stroke: #6e7781;
+      --text: #24292f;
+      --arrow: #6e7781;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1117;
+        --box: #161b22;
+        --stroke: #8b949e;
+        --text: #e6edf3;
+        --arrow: #8b949e;
+      }
+    }
+    text {
+      fill: var(--text);
+      font: 600 20px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+    .box {
+      fill: var(--box);
+      stroke: var(--stroke);
+      stroke-width: 1.5;
+    }
+    .arrow {
+      stroke: var(--arrow);
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+  </style>
+  <rect width="1500" height="170" rx="18" fill="var(--bg)" />
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M1 1 L9 5 L1 9" class="arrow" />
+    </marker>
+  </defs>
+
+  <g transform="translate(30 55)">
+    <rect class="box" x="0" y="0" width="110" height="60" rx="12" />
+    <text x="55" y="38" text-anchor="middle">CT URL</text>
+
+    <line class="arrow" x1="125" y1="30" x2="172" y2="30" marker-end="url(#arrowhead)" />
+
+    <rect class="box" x="185" y="0" width="130" height="60" rx="12" />
+    <text x="250" y="38" text-anchor="middle">ct.nii.gz</text>
+
+    <line class="arrow" x1="330" y1="30" x2="367" y2="30" marker-end="url(#arrowhead)" />
+
+    <rect class="box" x="380" y="0" width="170" height="60" rx="12" />
+    <text x="465" y="38" text-anchor="middle">MONAI loader</text>
+
+    <line class="arrow" x1="565" y1="30" x2="602" y2="30" marker-end="url(#arrowhead)" />
+
+    <rect class="box" x="615" y="0" width="280" height="60" rx="12" />
+    <text x="755" y="38" text-anchor="middle">SuPreM CUDA inference</text>
+
+    <line class="arrow" x1="910" y1="30" x2="947" y2="30" marker-end="url(#arrowhead)" />
+
+    <rect class="box" x="960" y="0" width="245" height="60" rx="12" />
+    <text x="1082.5" y="38" text-anchor="middle">NIfTI masks + metrics</text>
+
+    <line class="arrow" x1="1220" y1="30" x2="1257" y2="30" marker-end="url(#arrowhead)" />
+
+    <rect class="box" x="1270" y="0" width="190" height="60" rx="12" />
+    <text x="1365" y="38" text-anchor="middle">viewer contract</text>
+  </g>
+</svg>
