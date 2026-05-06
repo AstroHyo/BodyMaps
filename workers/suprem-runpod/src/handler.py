@@ -58,6 +58,26 @@ DEFAULT_INFERENCE_PARAMS = {
   'num_samples': 1,
 }
 
+DEFAULT_ALLOWED_CT_HOSTS = ('.public.blob.vercel-storage.com',)
+MAX_CT_DOWNLOAD_BYTES = int(os.environ.get('MAX_CT_DOWNLOAD_BYTES', 32 * 1024 * 1024))
+MAX_CT_REDIRECTS = int(os.environ.get('MAX_CT_REDIRECTS', 3))
+DOWNLOAD_CONNECT_TIMEOUT_SECONDS = float(os.environ.get('DOWNLOAD_CONNECT_TIMEOUT_SECONDS', 5))
+DOWNLOAD_READ_TIMEOUT_SECONDS = float(os.environ.get('DOWNLOAD_READ_TIMEOUT_SECONDS', 60))
+
+PARAM_BOUNDS = {
+  'space_x': (0.5, 5.0),
+  'space_y': (0.5, 5.0),
+  'space_z': (0.5, 5.0),
+  'a_min': (-2048.0, 4096.0),
+  'a_max': (-2048.0, 4096.0),
+  'b_min': (0.0, 1.0),
+  'b_max': (0.0, 1.0),
+  'roi_x': (32, 192),
+  'roi_y': (32, 192),
+  'roi_z': (32, 192),
+  'num_samples': (1, 4),
+}
+
 ORGAN_IDS_VOLUME_NA = {ORGAN_NAME_TO_INDEX[i] for i in ['aorta', 'postcava']}
 
 def voxelThreshold(slice):
@@ -207,6 +227,9 @@ import tempfile
 import requests
 import base64
 import glob
+import ipaddress
+import socket
+from urllib.parse import unquote, urljoin, urlparse
 
 # If your handler runs inference on a model, load the model here.
 # You will want models to be loaded into memory before starting serverless.
@@ -229,6 +252,118 @@ def parse_param(job_input, name, cast):
     return cast(value)
   except (TypeError, ValueError):
     raise ValueError(f'Invalid input.{name}: {value!r}')
+
+def parse_bounded_param(job_input, name, cast):
+  value = parse_param(job_input, name, cast)
+  if not np.isfinite(value):
+    raise ValueError(f'input.{name} must be finite.')
+  min_value, max_value = PARAM_BOUNDS[name]
+  if value < min_value or value > max_value:
+    raise ValueError(f'input.{name} must be between {min_value} and {max_value}.')
+  return value
+
+def allowed_ct_host_patterns():
+  configured = [
+    value.strip().lower().rstrip('.')
+    for value in os.environ.get('ALLOWED_CT_URL_HOSTS', '').split(',')
+    if value.strip()
+  ]
+  return DEFAULT_ALLOWED_CT_HOSTS + tuple(configured)
+
+def hostname_matches_pattern(hostname, pattern):
+  normalized_hostname = hostname.lower().rstrip('.')
+  normalized_pattern = pattern.lower().rstrip('.')
+  if normalized_pattern.startswith('.'):
+    return normalized_hostname.endswith(normalized_pattern)
+  return normalized_hostname == normalized_pattern
+
+def is_allowed_ct_hostname(hostname):
+  return any(
+    hostname_matches_pattern(hostname, pattern)
+    for pattern in allowed_ct_host_patterns()
+  )
+
+def ensure_public_dns(hostname):
+  try:
+    addresses = socket.getaddrinfo(hostname, 443, proto=socket.IPPROTO_TCP)
+  except socket.gaierror as error:
+    raise ValueError(f'Could not resolve CT URL host: {hostname}') from error
+
+  for address in addresses:
+    ip = ipaddress.ip_address(address[4][0])
+    if not ip.is_global:
+      raise ValueError('CT URL host resolved to a non-public network address.')
+
+def validate_download_url(url):
+  parsed = urlparse(url)
+  if parsed.scheme != 'https':
+    raise ValueError('input.url must use HTTPS.')
+  if parsed.username or parsed.password:
+    raise ValueError('input.url must not include credentials.')
+  if not parsed.hostname or not is_allowed_ct_hostname(parsed.hostname):
+    raise ValueError('input.url host is not allowed.')
+  if not unquote(parsed.path).lower().endswith('.nii.gz'):
+    raise ValueError('input.url must point to a .nii.gz file.')
+
+  ensure_public_dns(parsed.hostname)
+  return url
+
+def response_content_length(response):
+  raw_length = response.headers.get('Content-Length')
+  if not raw_length:
+    return None
+  try:
+    return int(raw_length)
+  except ValueError:
+    return None
+
+def fetch_ct_response(url):
+  current_url = validate_download_url(url)
+  for _ in range(MAX_CT_REDIRECTS + 1):
+    response = requests.get(
+      current_url,
+      headers={
+        'User-Agent': 'BodyMaps-RunPod-Worker/1.0',
+      },
+      stream=True,
+      allow_redirects=False,
+      timeout=(DOWNLOAD_CONNECT_TIMEOUT_SECONDS, DOWNLOAD_READ_TIMEOUT_SECONDS),
+    )
+
+    if response.status_code in (301, 302, 303, 307, 308):
+      location = response.headers.get('Location')
+      response.close()
+      if not location:
+        raise ValueError('CT URL redirect did not include a Location header.')
+      current_url = validate_download_url(urljoin(current_url, location))
+      continue
+
+    return response
+
+  raise ValueError('CT URL exceeded the redirect limit.')
+
+def download_ct(url, destination_path):
+  response = fetch_ct_response(url)
+  if response.status_code != 200:
+    raise ValueError(f'Failed to download CT: {response.status_code}')
+
+  content_length = response_content_length(response)
+  if content_length is not None and content_length > MAX_CT_DOWNLOAD_BYTES:
+    response.close()
+    raise ValueError('CT download exceeds the maximum allowed size.')
+
+  bytes_written = 0
+  try:
+    with open(destination_path, 'wb') as f:
+      for chunk in response.iter_content(chunk_size=1024 * 1024):
+        if not chunk:
+          continue
+        bytes_written += len(chunk)
+        if bytes_written > MAX_CT_DOWNLOAD_BYTES:
+          raise ValueError('CT download exceeds the maximum allowed size.')
+        f.write(chunk)
+  finally:
+    response.close()
 
 def resolve_targets(targets):
   if not isinstance(targets, list):
@@ -266,32 +401,30 @@ def handler(job):
   output_dir = os.path.join(workdir.name, 'outputs')
   os.makedirs(output_dir, exist_ok=True)
   
-  space_x = parse_param(job_input, 'space_x', float)
-  space_y = parse_param(job_input, 'space_y', float)
-  space_z = parse_param(job_input, 'space_z', float)
+  space_x = parse_bounded_param(job_input, 'space_x', float)
+  space_y = parse_bounded_param(job_input, 'space_y', float)
+  space_z = parse_bounded_param(job_input, 'space_z', float)
   
-  a_min = parse_param(job_input, 'a_min', float)
-  a_max = parse_param(job_input, 'a_max', float)
-  b_min = parse_param(job_input, 'b_min', float)
-  b_max = parse_param(job_input, 'b_max', float)
+  a_min = parse_bounded_param(job_input, 'a_min', float)
+  a_max = parse_bounded_param(job_input, 'a_max', float)
+  b_min = parse_bounded_param(job_input, 'b_min', float)
+  b_max = parse_bounded_param(job_input, 'b_max', float)
   
-  roi_x = parse_param(job_input, 'roi_x', int)
-  roi_y = parse_param(job_input, 'roi_y', int)
-  roi_z = parse_param(job_input, 'roi_z', int)
+  roi_x = parse_bounded_param(job_input, 'roi_x', int)
+  roi_y = parse_bounded_param(job_input, 'roi_y', int)
+  roi_z = parse_bounded_param(job_input, 'roi_z', int)
   
-  num_samples = parse_param(job_input, 'num_samples', int)
+  num_samples = parse_bounded_param(job_input, 'num_samples', int)
 
-  print(f'Downloading {url} to {sample_dir}')
-  response = requests.get(url, headers={
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
-  }, stream=True)
-  if response.status_code != 200:
-    raise ValueError(f'Failed to download {url}: {response.status_code}')
-  with open(os.path.join(sample_dir, 'ct.nii.gz'), 'wb') as f:
-    for chunk in response.iter_content(chunk_size=128):
-      if chunk:
-        f.write(chunk)
-  print(f'Downloaded {url} to {sample_dir}')
+  if a_min >= a_max:
+    raise ValueError('input.a_min must be smaller than input.a_max.')
+  if b_min >= b_max:
+    raise ValueError('input.b_min must be smaller than input.b_max.')
+
+  parsed_url = urlparse(url)
+  print(f'Downloading CT from {parsed_url.hostname} to {sample_dir}')
+  download_ct(url, os.path.join(sample_dir, 'ct.nii.gz'))
+  print(f'Downloaded CT to {sample_dir}')
   
   test_loader, val_transformers = get_loader(AttrDict({
     'space_x': space_x,

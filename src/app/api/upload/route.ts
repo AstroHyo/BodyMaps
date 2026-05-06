@@ -1,5 +1,8 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
+import { validateSharedPassword } from "@/utils/security";
+
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 export async function POST(request: Request): Promise<NextResponse> {
   const body = (await request.json()) as HandleUploadBody;
@@ -12,27 +15,30 @@ export async function POST(request: Request): Promise<NextResponse> {
         pathname: string,
         clientPayload?: string | null
       ) => {
-        const passwordRequired = process.env.DISABLE_PASSWORD !== "true";
-
         const { password } = JSON.parse(clientPayload || "{}");
-        if (passwordRequired && !password) {
-          throw new Error("Password is required");
+        const auth = validateSharedPassword(password);
+        if (!auth.ok) {
+          throw new Error(auth.error);
         }
 
-        if (passwordRequired && password !== process.env.PASSWORD) {
-          throw new Error("Invalid password");
+        if (!pathname.toLowerCase().endsWith(".nii.gz")) {
+          throw new Error("Only .nii.gz CT volumes can be uploaded");
         }
 
         return {
-          maximumSizeInBytes: 20 * 1024 * 1024, // 20MB
+          addRandomSuffix: false,
+          allowOverwrite: false,
+          maximumSizeInBytes: MAX_UPLOAD_BYTES,
         };
       },
-      onUploadCompleted: async ({ blob, tokenPayload }) => {
+      onUploadCompleted: async ({ blob }) => {
         // Get notified of client upload completion
         // ⚠️ This will not work on `localhost` websites,
         // Use ngrok or similar to get the full upload flow
 
-        console.log("blob upload completed", blob, tokenPayload);
+        console.log("blob upload completed", {
+          pathname: blob.pathname,
+        });
 
         // try {
         //   // Run any logic after the file upload completed

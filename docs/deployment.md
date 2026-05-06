@@ -14,6 +14,12 @@ Required environment variables:
 - `BLOB_READ_WRITE_TOKEN`
 - `PASSWORD`
 
+Security-related optional variables:
+
+- `ALLOWED_CT_URL_HOSTS`: comma-separated extra HTTPS hosts that may provide CT `.nii.gz` files. Public Vercel Blob hosts are allowed by default.
+- `MAX_CT_DOWNLOAD_BYTES`: worker-side CT download cap. Defaults to 32 MiB.
+- `DISABLE_PASSWORD`: local development only. The application ignores this bypass when `NODE_ENV=production`.
+
 Local development:
 
 ```bash

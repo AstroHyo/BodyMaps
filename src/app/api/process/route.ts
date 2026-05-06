@@ -2,20 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { del } from "@vercel/blob";
 import { z } from "zod";
 import { SUPPORTED_ORGAN_TARGETS } from "@/utils/inference";
+import {
+  isManagedVercelBlobUrl,
+  validateCtDownloadUrl,
+  validateSharedPassword,
+} from "@/utils/security";
 
-const paramsSchema = z.object({
-  space_x: z.number().default(1.5),
-  space_y: z.number().default(1.5),
-  space_z: z.number().default(1.5),
-  a_min: z.number().default(-175.0),
-  a_max: z.number().default(250.0),
-  b_min: z.number().default(0.0),
-  b_max: z.number().default(1.0),
-  roi_x: z.number().default(96),
-  roi_y: z.number().default(96),
-  roi_z: z.number().default(96),
-  num_samples: z.number().default(1),
-});
+const paramsSchema = z
+  .object({
+    space_x: z.number().finite().min(0.5).max(5).default(1.5),
+    space_y: z.number().finite().min(0.5).max(5).default(1.5),
+    space_z: z.number().finite().min(0.5).max(5).default(1.5),
+    a_min: z.number().finite().min(-2048).max(4096).default(-175.0),
+    a_max: z.number().finite().min(-2048).max(4096).default(250.0),
+    b_min: z.number().finite().min(0).max(1).default(0.0),
+    b_max: z.number().finite().min(0).max(1).default(1.0),
+    roi_x: z.number().int().min(32).max(192).default(96),
+    roi_y: z.number().int().min(32).max(192).default(96),
+    roi_z: z.number().int().min(32).max(192).default(96),
+    num_samples: z.number().int().min(1).max(4).default(1),
+  })
+  .refine((params) => params.a_min < params.a_max, {
+    message: "a_min must be smaller than a_max",
+  })
+  .refine((params) => params.b_min < params.b_max, {
+    message: "b_min must be smaller than b_max",
+  });
 
 function toSerializable(value: unknown): unknown {
   if (value === undefined) {
@@ -54,6 +66,10 @@ type RunPodResponse = {
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function redactUrls(message: string): string {
+  return message.replace(/https:\/\/[^\s'")]+/g, "[redacted-url]");
+}
 
 async function fetchRunPodStatus(jobId: string): Promise<RunPodResponse> {
   return fetch(`${process.env.RUNPOD_ENDPOINT}/status/${jobId}`, {
@@ -108,20 +124,29 @@ export async function POST(request: NextRequest) {
 
   try {
     const formData = await request.formData();
-    const file = formData.get("file") as string;
-    const password = formData.get("password") as string;
+    const file = formData.get("file");
+    const password = formData.get("password");
     const rawParams = formData.get("params");
-    const params = rawParams ? JSON.parse(rawParams.toString()) : {};
-    const passwordRequired = process.env.DISABLE_PASSWORD !== "true";
 
-    url = file;
+    const auth = validateSharedPassword(password);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
 
-    // Validate inputs
-    if (!file || (passwordRequired && !password)) {
+    try {
+      url = validateCtDownloadUrl(file);
+    } catch (error) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: error instanceof Error ? error.message : "Invalid CT URL" },
         { status: 400 }
       );
+    }
+
+    let params: unknown = {};
+    try {
+      params = rawParams ? JSON.parse(rawParams.toString()) : {};
+    } catch {
+      return NextResponse.json({ error: "Invalid parameters JSON" }, { status: 400 });
     }
 
     // Validate parameters using safeParse
@@ -131,11 +156,6 @@ export async function POST(request: NextRequest) {
         { error: "Invalid parameters: " + parsedParams.error.message },
         { status: 400 }
       );
-    }
-
-    // Validate password (replace with your actual password check)
-    if (passwordRequired && process.env.PASSWORD !== password) {
-      return NextResponse.json({ error: "Invalid password" }, { status: 401 });
     }
 
     if (!process.env.RUNPOD_ENDPOINT || !process.env.RUNPOD_ENDPOINT_KEY) {
@@ -154,7 +174,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         input: {
           ...parsedParams.data,
-          url: file,
+          url,
           targets: SUPPORTED_ORGAN_TARGETS,
         },
       }),
@@ -190,13 +210,16 @@ export async function POST(request: NextRequest) {
     // Return the download URL to the client
     return NextResponse.json(toSerializable(completed.output));
   } catch (error) {
-    console.error("Error processing CT image:", error);
+    console.error(
+      "Error processing CT image:",
+      error instanceof Error ? redactUrls(error.message) : "Unknown error"
+    );
     return NextResponse.json(
       { error: "An error occurred while processing the image" },
       { status: 500 }
     );
   } finally {
-    if (url?.includes(".public.blob.vercel-storage.com")) {
+    if (url && isManagedVercelBlobUrl(url)) {
       await del(url).catch((error) => {
         console.warn("Failed to delete uploaded blob:", error);
       });

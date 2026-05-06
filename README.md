@@ -147,7 +147,9 @@ docs/
 | `RUNPOD_ENDPOINT_KEY` | RunPod API key used by the Next.js API route. |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob token for temporary CT upload storage. |
 | `PASSWORD` | Upload/process password for research access control. |
-| `DISABLE_PASSWORD` | Optional local-development bypass for upload/process routes. |
+| `DISABLE_PASSWORD` | Optional local-development bypass. It is ignored when `NODE_ENV=production`. |
+| `ALLOWED_CT_URL_HOSTS` | Optional comma-separated extra HTTPS hosts for CT download URLs. Vercel Blob public hosts are allowed by default. |
+| `MAX_CT_DOWNLOAD_BYTES` | Optional worker download cap in bytes. Defaults to 32 MiB. |
 | `NEXT_PUBLIC_ALLOW_SAMPLE_DATA` | Enables bundled sample/evidence loading for local verification. |
 
 ## Worker Development

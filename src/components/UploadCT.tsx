@@ -23,6 +23,12 @@ export default function UploadCT() {
   const router = useRouter();
   const { setVolumeURL, setSegmentations } = useCornerstone();
 
+  const blobPathname = React.useMemo(() => {
+    if (!file) return null;
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    return `ct/${crypto.randomUUID()}-${safeName}`;
+  }, [file]);
+
   React.useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       console.log("asking");
@@ -73,7 +79,9 @@ export default function UploadCT() {
       );
 
       // Actual upload
-      const blob = await upload(file.name, file, {
+      if (!blobPathname) return;
+
+      const blob = await upload(blobPathname, file, {
         access: "public",
         handleUploadUrl: "/api/upload",
         clientPayload: JSON.stringify({ password }),
@@ -82,7 +90,7 @@ export default function UploadCT() {
       setIsUploading(false);
       clearSimulation?.();
 
-      console.log("File uploaded successfully:", blob.url);
+      console.log("File uploaded successfully");
 
       setIsProcessing(true);
 
@@ -109,10 +117,6 @@ export default function UploadCT() {
       }
 
       const data = parseInferenceResult(await res.json());
-
-      console.log("got data", data);
-
-      console.log("setting data");
 
       setVolumeURL(URL.createObjectURL(file));
       setSegmentations(
@@ -145,6 +149,7 @@ export default function UploadCT() {
     simulateProgress,
     router,
     password,
+    blobPathname,
     setSegmentations,
     setVolumeURL,
   ]);
