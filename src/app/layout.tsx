@@ -1,19 +1,7 @@
 "use client";
 
-import localFont from "next/font/local";
 import dynamic from "next/dynamic";
 import "./globals.css";
-
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
 
 // Using dynamic imports to exclude Cornerstone.js from SSR
 const DynamicCornerstoneProvider = dynamic(
@@ -35,9 +23,7 @@ export default function RootLayout({
         <title>BodyMaps</title>
         <link rel="icon" href="/favicon.ico" />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className="antialiased">
         <DynamicCornerstoneProvider>{children}</DynamicCornerstoneProvider>
       </body>
     </html>
