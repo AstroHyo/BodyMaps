@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { del } from "@vercel/blob";
 import { z } from "zod";
+import { SUPPORTED_ORGAN_TARGETS } from "@/utils/inference";
 
 const paramsSchema = z.object({
   space_x: z.number().default(1.5),
@@ -15,18 +16,6 @@ const paramsSchema = z.object({
   roi_z: z.number().default(96),
   num_samples: z.number().default(1),
 });
-
-const ALL_TARGETS = [
-  "spleen",
-  "kidney_right",
-  "kidney_left",
-  "gall_bladder",
-  "liver",
-  "stomach",
-  "aorta",
-  "postcava",
-  "pancreas",
-];
 
 export const maxDuration = 300;
 
@@ -73,7 +62,7 @@ export async function POST(request: NextRequest) {
         input: {
           ...params,
           url: file,
-          targets: ALL_TARGETS,
+          targets: SUPPORTED_ORGAN_TARGETS,
         },
       }),
     }).then((r) => r.json());

@@ -1,0 +1,38 @@
+{
+  "aorta": {
+    "meanHU": "150.9",
+    "volumeCM": "N/A"
+  },
+  "gall_bladder": {
+    "meanHU": "10.5",
+    "volumeCM": "Incomplete organ"
+  },
+  "kidney_left": {
+    "meanHU": "165.2",
+    "volumeCM": "106.94"
+  },
+  "kidney_right": {
+    "meanHU": "173.3",
+    "volumeCM": "110.42"
+  },
+  "liver": {
+    "meanHU": "64",
+    "volumeCM": "Incomplete organ"
+  },
+  "pancreas": {
+    "meanHU": "5.4",
+    "volumeCM": "121.64"
+  },
+  "postcava": {
+    "meanHU": "116",
+    "volumeCM": "N/A"
+  },
+  "spleen": {
+    "meanHU": "105.7",
+    "volumeCM": "178.62"
+  },
+  "stomach": {
+    "meanHU": "-91.4",
+    "volumeCM": "400.95"
+  }
+}

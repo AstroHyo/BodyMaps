@@ -1,0 +1,27 @@
+{
+  "input": {
+    "url": "https://example.com/path/to/ct.nii.gz",
+    "targets": [
+      "spleen",
+      "kidney_right",
+      "kidney_left",
+      "gall_bladder",
+      "liver",
+      "stomach",
+      "aorta",
+      "postcava",
+      "pancreas"
+    ],
+    "space_x": 1.5,
+    "space_y": 1.5,
+    "space_z": 1.5,
+    "a_min": -175.0,
+    "a_max": 250.0,
+    "b_min": 0.0,
+    "b_max": 1.0,
+    "roi_x": 96,
+    "roi_y": 96,
+    "roi_z": 96,
+    "num_samples": 1
+  }
+}

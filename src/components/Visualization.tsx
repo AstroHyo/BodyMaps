@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronLeft,
   Menu,
@@ -16,13 +16,16 @@ import { useCornerstone } from "@/context/CornerstoneContext";
 import NiivueCanvas from "@/components/Niivue";
 import SegmentationDataModal from "@/components/SegmentationDataModal";
 import VisualizationControls from "@/components/VisualizationControls";
+import { loadSampleSegmentations } from "@/utils/sampleData";
 
 export default function Visualization() {
   const [showModal, setShowModal] = useState(false);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
   const [fullscreenPanel, setFullscreenPanel] = useState<number | null>(null);
+  const [sampleLoadError, setSampleLoadError] = useState<string | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const toggleSidebar = () => {
     setSidebarMinimized((prev) => !prev);
@@ -49,16 +52,45 @@ export default function Visualization() {
     setWindow,
     level,
     setLevel,
+    setVolumeURL,
+    setSegmentations,
   } = useCornerstone();
 
   useEffect(() => {
+    if (segmentations.length) return;
+    if (
+      process.env.NEXT_PUBLIC_ALLOW_SAMPLE_DATA &&
+      searchParams.get("sample") === "1"
+    ) {
+      let canceled = false;
+      loadSampleSegmentations()
+        .then(({ volumeURL, segmentations }) => {
+          if (canceled) return;
+          setVolumeURL(volumeURL);
+          setSegmentations(segmentations);
+        })
+        .catch((err) => {
+          if (canceled) return;
+          console.error("Failed to load sample data", err);
+          setSampleLoadError("Failed to load sample data.");
+        });
+
+      return () => {
+        canceled = true;
+      };
+    }
+
     if (!segmentations.length) {
       router.push("/");
     }
-  }, [segmentations, router]);
+  }, [segmentations, router, searchParams, setSegmentations, setVolumeURL]);
 
   if (!segmentations.length) {
-    return null;
+    return (
+      <div className="h-screen bg-black text-white flex items-center justify-center">
+        {sampleLoadError ?? "Loading sample data..."}
+      </div>
+    );
   }
 
   return (

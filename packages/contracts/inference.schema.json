@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bodymaps.local/contracts/inference.schema.json",
+  "title": "BodyMaps SuPreM Inference Result",
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^(spleen|kidney_right|kidney_left|gall_bladder|liver|stomach|aorta|postcava|pancreas)$": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content", "volume_cm", "mean_hu"],
+      "properties": {
+        "content": {
+          "type": "string",
+          "description": "Base64-encoded .nii.gz segmentation mask."
+        },
+        "volume_cm": {
+          "oneOf": [
+            { "type": "number" },
+            { "type": "string" }
+          ]
+        },
+        "mean_hu": {
+          "oneOf": [
+            { "type": "number" },
+            { "type": "string" }
+          ]
+        }
+      }
+    }
+  }
+}

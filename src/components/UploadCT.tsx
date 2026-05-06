@@ -6,6 +6,7 @@ import { Upload, FileUp, AlertTriangle, Lock } from "lucide-react";
 import { upload } from "@vercel/blob/client";
 import { base64ToArrayBuffer } from "@/utils/base64ToArrayBuffer";
 import { useCornerstone } from "@/context/CornerstoneContext";
+import { parseInferenceResult } from "@/utils/inference";
 import { Label } from "@/components/ui/Label";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -105,13 +106,7 @@ export default function UploadCT() {
         throw new Error("API request failed");
       }
 
-      const data = (await res.json()) as {
-        [organName: string]: {
-          content: string;
-          volume_cm: string | number;
-          mean_hu: string | number;
-        };
-      };
+      const data = parseInferenceResult(await res.json());
 
       console.log("got data", data);
 
@@ -232,61 +227,11 @@ export default function UploadCT() {
           onChange={handleFileChange}
           disabled={isUploading || isProcessing}
         />
-        {process.env.NEXT_PUBLIC_ALLOW_DEMO && (
+        {process.env.NEXT_PUBLIC_ALLOW_SAMPLE_DATA && (
           <Button
-            onClick={() => {
-              Promise.all(
-                [
-                  {
-                    organName: "aorta",
-                    url: "/demo/aorta.nii.gz",
-                  },
-                  {
-                    organName: "gallbladder",
-                    url: "/demo/gallbladder.nii.gz",
-                  },
-                  {
-                    organName: "kidney_left",
-                    url: "/demo/kidney_left.nii.gz",
-                  },
-                  {
-                    organName: "kidney_right",
-                    url: "/demo/kidney_right.nii.gz",
-                  },
-                  {
-                    organName: "liver",
-                    url: "/demo/liver.nii.gz",
-                  },
-                  {
-                    organName: "pancreas",
-                    url: "/demo/pancreas.nii.gz",
-                  },
-                  {
-                    organName: "spleen",
-                    url: "/demo/spleen.nii.gz",
-                  },
-                  {
-                    organName: "stomach",
-                    url: "/demo/stomach.nii.gz",
-                  },
-                ].map(async ({ organName, url }) => {
-                  const res = await fetch(url);
-                  const content = await res.arrayBuffer();
-                  return {
-                    organName,
-                    content,
-                    volumeCM: "",
-                    meanHU: "",
-                  };
-                })
-              ).then((segmentations) => {
-                setVolumeURL("/demo/ct.nii.gz");
-                setSegmentations(segmentations);
-                router.push("/visualization");
-              });
-            }}
+            onClick={() => router.push("/visualization?sample=1")}
           >
-            Load Demo
+            Load Sample Data
           </Button>
         )}
         {(isUploading || isProcessing) && (
