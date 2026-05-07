@@ -14,7 +14,7 @@
     "@cornerstonejs/tools": "^1.86.0",
     "@niivue/niivue": "^0.46.0",
     "@vercel/blob": "^2.3.3",
-    "class-variance-authority": "^0.7.0",
+    "class-variance-authority": "^0.7.1",
     "lucide-react": "^0.453.0",
     "next": "^15.5.16",
     "nifti-reader-js": "^0.6.8",
