@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@cornerstonejs/core": "^1.86.0",
-    "@cornerstonejs/nifti-volume-loader": "^1.86.0",
+    "@cornerstonejs/nifti-volume-loader": "^4.22.6",
     "@cornerstonejs/tools": "^1.86.0",
     "@niivue/niivue": "^0.46.0",
     "@vercel/blob": "^2.3.3",
