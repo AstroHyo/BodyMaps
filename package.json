@@ -12,7 +12,7 @@
     "@cornerstonejs/core": "^1.86.0",
     "@cornerstonejs/nifti-volume-loader": "^1.86.0",
     "@cornerstonejs/tools": "^1.86.0",
-    "@niivue/niivue": "^0.46.0",
+    "@niivue/niivue": "^0.68.2",
     "@vercel/blob": "^2.3.3",
     "class-variance-authority": "^0.7.1",
     "lucide-react": "^1.14.0",
